@@ -1,0 +1,493 @@
+interface demo
+service testNamingConvention
+properties {
+    favorite: false;
+    deprecated: false;
+    visible: private;
+    reuse: private;
+    stateless: false;
+    cacheResults: false;
+    cacheExpire: 15;
+    prefetch: false;
+    prefetchActivation: 1;
+    pipelineDebug: None;
+    allowedHttpMethods: [TRACE, HEAD, DELETE, POST, GET, OPTIONS, PUT, PATCH];
+    maxRetryAttempts: 0;
+    retryInterval: 0;
+    enableAuditing: never;
+    logOn: Error only;
+    includePipeline: never;
+    circuitBreakerEnabled: false;
+    failureEvent: Exception only;
+    timeoutPeriod: 60;
+    cancelThreadOnTimeout: false;
+    failureThreshold: 5;
+    failurePeriod: 60;
+    circuitOpenAction: Throw exception;
+    circuitResetPeriod: 300;
+    templateType: html;
+    concurrencyEnabled: false;
+    maxConcurrentRequests: 20;
+    specificationReference: "SAGCodeReviewTool.doc:codeReviewRule";
+    validateInput: false;
+    validateOutput: false;
+}
+{
+    MAP {
+        comment: "Initialize Variables"
+        mapTarget {
+            record Result;
+        }
+        set `Result`/`errorCount` = "{}";
+        set `Result`/`totalCount` = "{}";
+    }
+    MAP {
+        comment: "Get Package Count"
+        TRANSFORM pub.list:sizeOfList {
+            invoke-order: 0
+            validateInput: false
+            validateOutput: false
+            input {
+                mapSource {
+                    String[] packageList;
+                }
+                mapTarget {
+                    Object[] fromList;
+                }
+                copy `packageList` -> `fromList`;
+            }
+        }
+    }
+    INVOKE pub.flow:debugLog {
+        validateInput: false
+        validateOutput: false
+        input {
+            mapTarget {
+                String message;
+                String function;
+                String level;
+            }
+            set `message` = "Starting naming convention audit for packages";
+            set `function` = "testNamingConvention";
+            set `level` = "INFO";
+        }
+    }
+    LOOP {
+        inputArray: "/packageList"
+        maxThreads: "1"
+        parallelErrorHandling: "reportError"
+        BRANCH {
+            evaluateLabels: true
+            SEQUENCE {
+                label: "%packageList%"
+                SEQUENCE {
+                    comment: "try"
+                    INVOKE pub.flow:debugLog {
+                        validateInput: false
+                        validateOutput: false
+                        input {
+                            copy `packageList` -> `message`;
+                            set `function` = "testNamingConvention";
+                            set `level` = "DEBUG";
+                        }
+                    }
+                    INVOKE SAGCodeReviewTool.util:getFilesAndDirs {
+                        validateInput: false
+                        validateOutput: false
+                        input {
+                            copy `packageList` -> `PackageName`;
+                        }
+                        output {
+                            mapSource {
+                                String RootFolders;
+                                String SubFolders;
+                                String Services;
+                                String FlowJavaNodePathList;
+                            }
+                            mapTarget {
+                                String Services;
+                                String SubFolders;
+                                String FlowJavaNodePathList;
+                                String RootFolders;
+                            }
+                            copy `RootFolders` -> `RootFolders`;
+                            copy `SubFolders` -> `SubFolders`;
+                            copy `Services` -> `Services`;
+                            drop `FlowPathList`;
+                            drop `JavaPathList`;
+                            drop `PackageName`;
+                            drop `NodePathList`;
+                            copy `FlowJavaNodePathList` -> `FlowJavaNodePathList`;
+                        }
+                    }
+                    INVOKE SAGCodeReviewTool.flow:validatePackage {
+                        validateInput: false
+                        validateOutput: false
+                        input {
+                            copy `packageList` -> `packageName`;
+                        }
+                        output {
+                            mapSource {
+                                String errors;
+                            }
+                            mapTarget {
+                                String errors;
+                            }
+                            copy `errors` -> `errors`;
+                            drop `packageName`;
+                        }
+                    }
+                    INVOKE pub.list:appendToStringList {
+                        validateInput: false
+                        validateOutput: false
+                        input {
+                            copy `errors` -> `fromList`;
+                        }
+                        output {
+                            drop `toList`;
+                            drop `fromList`;
+                            drop `errors`;
+                        }
+                    }
+                    MAP {
+                        comment: "Get Count"
+                        TRANSFORM pub.list:sizeOfList {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `RootFolders` -> `fromList`;
+                            }
+                            output {
+                                mapTarget {
+                                    String rootFoldersSize;
+                                }
+                                copy `size` -> `rootFoldersSize`;
+                            }
+                        }
+                        TRANSFORM pub.list:sizeOfList {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `SubFolders` -> `fromList`;
+                            }
+                            output {
+                                mapTarget {
+                                    String subFoldersSize;
+                                }
+                                copy `size` -> `subFoldersSize`;
+                            }
+                        }
+                        TRANSFORM pub.list:sizeOfList {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `Services` -> `fromList`;
+                            }
+                            output {
+                                mapTarget {
+                                    String servicesSize;
+                                }
+                                copy `size` -> `servicesSize`;
+                            }
+                        }
+                        TRANSFORM pub.list:sizeOfList {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `FlowJavaNodePathList` -> `fromList`;
+                            }
+                            output {
+                                mapTarget {
+                                    String javaServicesSize;
+                                }
+                                copy `size` -> `javaServicesSize`;
+                            }
+                        }
+                    }
+                    MAP {
+                        comment: "Add Flow Services Count to Total Count"
+                        TRANSFORM pub.math:addInts {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                mapTarget {
+                                    String num2;
+                                }
+                                copy `servicesSize` -> `num2`;
+                            }
+                        }
+                    }
+                    MAP {
+                        comment: "Add Java Services Count to Total Count"
+                        TRANSFORM pub.math:addInts {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `javaServicesSize` -> `num2`;
+                            }
+                        }
+                    }
+                    MAP {
+                        comment: "Add Root Folders Count to Total Count"
+                        TRANSFORM pub.math:addInts {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `rootFoldersSize` -> `num2`;
+                            }
+                        }
+                    }
+                    MAP {
+                        comment: "Add Sub Folders Count to Total Count"
+                        TRANSFORM pub.math:addInts {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `subFoldersSize` -> `num2`;
+                            }
+                        }
+                    }
+                    LOOP {
+                        inputArray: "/RootFolders"
+                        maxThreads: "1"
+                        parallelErrorHandling: "reportError"
+                        INVOKE SAGCodeReviewTool.flow:validateRootFolder {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `packageList` -> `packageName`;
+                                copy `RootFolders` -> `rootFolder`;
+                            }
+                            output {
+                                mapSource {
+                                    String errors;
+                                }
+                                mapTarget {
+                                    String errors;
+                                }
+                                drop `rootFolder`;
+                                drop `packageName`;
+                                copy `errors` -> `errors`;
+                                drop `RootFolders`;
+                            }
+                        }
+                        INVOKE pub.list:appendToStringList {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `errors` -> `fromList`;
+                            }
+                            output {
+                                drop `toList`;
+                                drop `fromList`;
+                                drop `errors`;
+                            }
+                        }
+                    }
+                    LOOP {
+                        inputArray: "/SubFolders"
+                        outputArray: "/Results/Result"
+                        maxThreads: "1"
+                        parallelErrorHandling: "reportError"
+                        INVOKE SAGCodeReviewTool.flow:validateSubFolder {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `SubFolders` -> `subFolder`;
+                            }
+                            output {
+                                mapSource {
+                                    String errors;
+                                }
+                                mapTarget {
+                                    String errors;
+                                }
+                                drop `SubFolders`;
+                                drop `subFolder`;
+                                copy `errors` -> `errors`;
+                            }
+                        }
+                        INVOKE pub.list:appendToStringList {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `errors` -> `fromList`;
+                            }
+                            output {
+                                drop `toList`;
+                                drop `fromList`;
+                                drop `errors`;
+                            }
+                        }
+                    }
+                    LOOP {
+                        inputArray: "/Services"
+                        outputArray: "/Results/Result"
+                        maxThreads: "1"
+                        parallelErrorHandling: "reportError"
+                        INVOKE SAGCodeReviewTool.flow:validateService {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `Services` -> `service`;
+                            }
+                            output {
+                                mapSource {
+                                    String errors;
+                                }
+                                mapTarget {
+                                    String errors;
+                                }
+                                copy `errors` -> `errors`;
+                                drop `service`;
+                                drop `Services`;
+                            }
+                        }
+                        INVOKE pub.list:appendToStringList {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `errors` -> `fromList`;
+                            }
+                            output {
+                                drop `toList`;
+                                drop `fromList`;
+                                drop `errors`;
+                            }
+                        }
+                    }
+                    LOOP {
+                        inputArray: "/FlowJavaNodePathList"
+                        outputArray: "/Results/Result"
+                        maxThreads: "1"
+                        parallelErrorHandling: "reportError"
+                        INVOKE SAGCodeReviewTool.flow:validateVariable {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `FlowJavaNodePathList` -> `fileName`;
+                            }
+                            output {
+                                mapSource {
+                                    String errors;
+                                }
+                                mapTarget {
+                                    String errors;
+                                }
+                                copy `errors` -> `errors`;
+                                drop `fileName`;
+                                drop `FlowJavaNodePathList`;
+                            }
+                        }
+                        INVOKE pub.list:appendToStringList {
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `errors` -> `fromList`;
+                            }
+                            output {
+                                drop `toList`;
+                                drop `fromList`;
+                                drop `errors`;
+                            }
+                        }
+                    }
+                    BRANCH {
+                        switch: "/Result/errorList"
+                        MAP {
+                            label: "$null"
+                            drop `packageList`;
+                        }
+                        MAP {
+                            label: "$default"
+                            mapTarget {
+                                record Result {
+                                    allowUnspecifiedFields: true;
+                                } {
+                                    record errorCount {
+                                        allowUnspecifiedFields: true;
+                                    };
+                                    record totalCount {
+                                        allowUnspecifiedFields: true;
+                                    };
+                                    record ruleId {
+                                        allowUnspecifiedFields: true;
+                                    };
+                                    record status {
+                                        allowUnspecifiedFields: true;
+                                    };
+                                };
+                            }
+                            drop `packageList`;
+                            set `Result`/`ruleId` = "{}";
+                            set `Result`/`status` = "{}";
+                        }
+                    }
+                    MAP {
+                        TRANSFORM pub.list:sizeOfList {
+                            invoke-order: 0
+                            validateInput: false
+                            validateOutput: false
+                            input {
+                                copy `Result`/`errorList` -> `fromList`;
+                            }
+                        }
+                    }
+                }
+                SEQUENCE {
+                    comment: "catch"
+                    INVOKE pub.flow:getLastError {
+                        validateInput: false
+                        validateOutput: false
+                    }
+                    INVOKE pub.flow:debugLog {
+                        validateInput: false
+                        validateOutput: false
+                        input {
+                            copy `lastError`/`error` -> `message`;
+                            set `function` = "testNamingConvention";
+                            set `level` = "ERROR";
+                        }
+                    }
+                    MAP {
+                        set `Result`/`ruleId` = "{}";
+                        set `Result`/`status` = "{}";
+                        drop `lastError`/`lastError`;
+                    }
+                }
+            }
+        }
+    }
+    INVOKE pub.flow:debugLog {
+        validateInput: false
+        validateOutput: false
+        input {
+            mapTarget {
+                String message;
+                String function;
+                String level;
+            }
+            set `message` = "Naming convention audit completed";
+            set `function` = "testNamingConvention";
+            set `level` = "INFO";
+        }
+    }
+    INVOKE pub.flow:clearPipeline {
+        validateInput: false
+        validateOutput: false
+        input {
+            mapTarget {
+                String[] preserve;
+            }
+            set `preserve` = ["Result"];
+        }
+    }
+}

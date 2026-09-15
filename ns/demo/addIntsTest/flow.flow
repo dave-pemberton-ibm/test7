@@ -39,17 +39,31 @@ properties {
     validateOutput: false;
 }
 {
-    INVOKE pub.math:addInts {
-        validateInput: false
-        validateOutput: false
-        output {
-            mapTarget {
-                String sum;
+    TRY {
+        INVOKE pub.math:addInts {
+            validateInput: false
+            validateOutput: false
+            output {
+                mapTarget {
+                    String sum;
+                }
+                copy `value` -> `sum`;
+                drop `num2`;
+                drop `value`;
+                drop `num1`;
             }
-            copy `value` -> `sum`;
-            drop `num2`;
-            drop `value`;
-            drop `num1`;
+        }
+    } CATCH {
+        INVOKE pub.flow:getLastError {
+            validateInput: false
+            validateOutput: false
+        }
+        INVOKE pub.flow:debugLog {
+            validateInput: false
+            validateOutput: false
+            input {
+                copy `errorMessage` -> `message`;
+            }
         }
     }
 }

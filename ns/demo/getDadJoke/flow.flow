@@ -1,0 +1,136 @@
+interface demo
+service getDadJoke (
+    input {
+        String sendToSlackUrl;
+    }
+    output {
+        String joke;
+    }
+)
+properties {
+    favorite: false;
+    deprecated: false;
+    visible: public;
+    reuse: private;
+    stateless: true;
+    cacheResults: false;
+    cacheExpire: 15;
+    prefetch: false;
+    prefetchActivation: 1;
+    pipelineDebug: None;
+    allowedHttpMethods: [TRACE, HEAD, DELETE, POST, GET, OPTIONS, PUT, PATCH];
+    maxRetryAttempts: 0;
+    retryInterval: 0;
+    enableAuditing: never;
+    logOn: Error only;
+    includePipeline: never;
+    circuitBreakerEnabled: false;
+    failureEvent: Exception only;
+    timeoutPeriod: 60;
+    cancelThreadOnTimeout: false;
+    failureThreshold: 5;
+    failurePeriod: 60;
+    circuitOpenAction: Throw exception;
+    circuitResetPeriod: 300;
+    concurrencyEnabled: false;
+    maxConcurrentRequests: 20;
+    validateInput: false;
+    validateOutput: false;
+}
+{
+    MAP {
+        comment: "Initialise Accept header for icanhazdadjoke API"
+        mapTarget {
+            record headers {
+                String Accept;
+            };
+        }
+        set `headers` = {`Accept`:""};
+    }
+    MAP {
+        comment: "Set Accept header value"
+        mapTarget {
+            record headers {
+                allowUnspecifiedFields: true;
+            } {
+                String Accept;
+            };
+        }
+        set `headers`/`Accept` = "application/json";
+    }
+    INVOKE pub.client:http {
+        validateInput: false
+        validateOutput: false
+        input {
+            mapTarget {
+                String url;
+                String method;
+            }
+            set `url` = "https://icanhazdadjoke.com/";
+            set `method` = "get";
+        }
+    }
+    MAP {
+        comment: "Drop variables consumed by pub.client:http"
+        drop `headers`;
+        drop `url`;
+        drop `method`;
+        drop `encodedURL`;
+        drop `header`;
+    }
+    INVOKE pub.string:bytesToString {
+        validateInput: false
+        validateOutput: false
+        input {
+            copy `body`/`bytes` -> `bytes`;
+        }
+        output {
+            mapTarget {
+                String responseString;
+            }
+            copy `string` -> `responseString`;
+        }
+    }
+    INVOKE pub.json:jsonStringToDocument {
+        validateInput: false
+        validateOutput: false
+        input {
+            copy `responseString` -> `jsonString`;
+        }
+        output {
+            mapTarget {
+                record jokeDoc {
+                    allowUnspecifiedFields: true;
+                };
+            }
+            copy `document` -> `jokeDoc`;
+            drop `document`;
+        }
+    }
+    MAP {
+        comment: "Extract joke field and drop intermediate variables"
+        mapTarget {
+            String joke;
+        }
+        set (variable) `joke` = "%jokeDoc/joke%";
+        drop `jokeDoc`;
+        drop `responseString`;
+        drop `body`;
+        drop `string`;
+    }
+    IF (sendToSlackUrl!=$null) {
+        INVOKE slack:sendToSlack {
+            validateInput: false
+            validateOutput: false
+            input {
+                copy `joke` -> `message`;
+                copy `sendToSlackUrl` -> `slackWebhookURL`;
+            }
+        }
+    }
+    MAP {
+        comment: "Drop remaining pipeline variables"
+        drop `sendToSlackUrl`;
+        drop `status`;
+    }
+}
