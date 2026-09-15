@@ -1,0 +1,55 @@
+interface demo
+service addIntsTest (
+    input {
+        String num1;
+        String num2;
+    }
+    output {
+        String sum;
+    }
+)
+properties {
+    favorite: false;
+    deprecated: false;
+    visible: public;
+    reuse: private;
+    stateless: true;
+    cacheResults: false;
+    cacheExpire: 15;
+    prefetch: false;
+    prefetchActivation: 1;
+    pipelineDebug: None;
+    allowedHttpMethods: [TRACE, HEAD, DELETE, POST, GET, OPTIONS, PUT, PATCH];
+    maxRetryAttempts: 0;
+    retryInterval: 0;
+    enableAuditing: never;
+    logOn: Error only;
+    includePipeline: never;
+    circuitBreakerEnabled: false;
+    failureEvent: Exception only;
+    timeoutPeriod: 60;
+    cancelThreadOnTimeout: false;
+    failureThreshold: 5;
+    failurePeriod: 60;
+    circuitOpenAction: Throw exception;
+    circuitResetPeriod: 300;
+    concurrencyEnabled: false;
+    maxConcurrentRequests: 20;
+    validateInput: false;
+    validateOutput: false;
+}
+{
+    INVOKE pub.math:addInts {
+        validateInput: false
+        validateOutput: false
+        output {
+            mapTarget {
+                String sum;
+            }
+            copy `value` -> `sum`;
+            drop `num2`;
+            drop `value`;
+            drop `num1`;
+        }
+    }
+}
